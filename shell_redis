@@ -1,0 +1,19 @@
+#!/bin/bash
+
+IPADDR=`hostname -i | awk '{print $(NF-1)}'`
+PORT=`hostname -i | awk '{print $(NF-1)}' | awk -F. '{print $NF}'`
+
+sed -i "/^bind/ c\bind $IPADDR" /etc/redis/6379.conf
+sed -i "/^port/ c\port 63$PORT" /etc/redis/6379.conf
+sed -i '$a\cluster-enabled yes' /etc/redis/6379.conf
+sed -i "\$a\cluster-config-file nodes-63"$PORT".conf" /etc/redis/6379.conf
+sed -i "\$a\cluster-node-timeout 5000" /etc/redis/6379.conf
+
+sed -i "/^REDISPORT/ c\REDISPORT=\"63$PORT\"" /etc/init.d/redis_6379
+sed -i "2a\IPADDR=`hostname -i | awk '{print $(NF-1)}'`" /etc/init.d/redis_6379
+sed -i "/shutdown$/ a\            $CLIEXEC -h $IPADDR -p $REDISPORT shutdown" /etc/init.d/redis_6379
+
+killall -9 redis-server
+rm -rf /var/run/redis_6379.pid
+/etc/init.d/redis_6379 start
+ss -nutlp | grep redis
