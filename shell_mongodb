@@ -1,0 +1,23 @@
+#!/bin/bash
+cd soft/mongodb/
+rm -rf mongodb-linux-x86_64-rhel70-3.6.3
+tar -xvf mongodb-linux-x86_64-rhel70-3.6.3.tgz
+cp -r mongodb-linux-x86_64-rhel70-3.6.3 /usr/local/mongodb
+
+cd /usr/local/mongodb
+mkdir -p bin data/db etc log
+
+IPADDR=`hostname -i | awk '{print $(NF-1)}'`
+PORT=`hostname -i | awk '{print $(NF-1)}' | awk -F. '{print $NF}'`
+echo '#auto_mongo' > ./etc/mongodb.conf
+sed -i '1a\logpath=/usr/local/mongodb/log/mongodb.log' /usr/local/mongodb/etc/mongodb.conf
+sed -i '$a\logappend=true' /usr/local/mongodb/etc/mongodb.conf
+sed -i '$a\dbpath=/usr/local/mongodb/data/db' /usr/local/mongodb/etc/mongodb.conf
+sed -i '$a\fork=true' /usr/local/mongodb/etc/mongodb.conf
+sed -i "\$a\bind_ip=$IPADDR" /usr/local/mongodb/etc/mongodb.conf
+sed -i "\$a\port=270$PORT" /usr/local/mongodb/etc/mongodb.conf
+
+sed -i '$a\alias mstart="/usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf"' /root/.bashrc
+sed -i '$a\alias mstop="/usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf --shutdown"' /root/.bashrc
+sed -i '$a\alias mongodb="/usr/local/mongodb/bin/mongo"' /root/.bashrc
+sed -i '$a\alias ssmongo="ss -nutlp | grep mongo"' /root/.bashrc
