@@ -1,0 +1,32 @@
+#!/bin/bash
+NGINXSRC='/root/soft/redis/lnmp/nginx-1.12.2.tar.gz'
+PHPPATH='/root/soft/redis/lnmp'
+MYSQLPATH='/root/soft/mysql'
+
+yum -y install gcc pcre-devel zlib-devel &> /dev/null
+rm -rf /usr/local/nginx 
+tar -xPf $NGINXSRC 
+cd nginx-1.12.2/
+useradd nginx &> /dev/null 
+./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-stream &> /dev/null
+make &> /dev/null && make install &> /dev/null
+ln -s /usr/local/nginx/sbin/nginx /usr/sbin
+nginx
+
+cd $PHPPATH
+yum -y install php php-devel.x86_64 0:5.4.16-42.el7 php-fpm.x86_64 0:5.4.16-42.el7 &> /dev/null
+echo '<?php echo "php test"; ?>' > /usr/local/nginx/html/phptest.php 
+systemctl restart php-fpm
+curl http://127.0.0.1/phptest.php
+
+cd $MYSQLPATH
+yum -y install mysql-community-*  php-mysql &> /dev/null
+sed -i '/\[mysqld\]/ a\skip-grant-tables' /etc/my.cnf
+systemctl restart mysqld
+mysql -e 'update mysql.user set authentication_string=password("root");'
+sed -i '/^skip/ d' /etc/my.cnf
+sed -i '/\[mysqld\]/ a\validate_password_policy=0\nvalidate_password_length=4' /etc/my.cnf
+systemctl restart mysqld
+mysql -uroot -proot -e 'alter user user() identified by "root";'
+echo '<?php $con=mysql_connect("localhost","root","root");if(!$con) echo "error";else echo "OK!"; ?>' > /usr/local/nginx/html/mysqltest.php
+curl http://127.0.0.1/mysqltest.php
