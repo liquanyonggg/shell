@@ -1,0 +1,88 @@
+#!/bin/bash
+yum -y install wget  &> /dev/null
+wget -P /usr/local ftp://10.28.233.201/pub/kafka* &>/dev/null
+cd /usr/local
+tar -xf kafka_j*
+tar -xf kafka_2*
+tar -xf kafka_z*
+cat <<EOF  >>/etc/profile
+export JAVA_HOME=/usr/local/jdk1.8.0_201 
+export PATH=\$JAVA_HOME/bin:\$PATH
+export CLASSPATH=.:\$JAVA_HOME/lib/dt.jar:\$JAVA_HOME/lib/tools.jar
+export ZOOKEEPER_HOME=/usr/local/zookeeper-3.4.5/
+export PATH=\$PATH:$ZOOKEEPER_HOME/bin
+EOF
+
+source /etc/profile
+cp /usr/local/zookeeper-3.4.5/conf/zoo_sample.cfg /usr/local/zookeeper-3.4.5/conf/zoo.cfg
+
+sed -i 's/^#\(listeners\)/\1/' /usr/local/kafka_2.11-0.10.2.1/config/server.properties
+
+cat<<EOF >/etc/init.d/zookeeper
+#!/bin/bash
+#chkconfig:2345 20 90
+#description:zookeeper
+#processname:zookeeper
+
+case \$1 in
+	start)
+	/usr/local/zookeeper-3.4.5/bin/zkServer.sh start
+	;;
+	stop)
+	/usr/local/zookeeper-3.4.5/bin/zkServer.sh stop
+	;;
+	status)
+	/usr/local/zookeeper-3.4.5/bin/zkServer.sh status
+	;;
+	restart)
+	/usr/local/zookeeper-3.4.5/bin/zkServer.sh restart
+	;;
+	*)
+	echo "require start|stop|status|restart"
+	;;
+esac
+EOF
+
+cat<<EOF >/etc/init.d/kafka
+#!/bin/bash
+#chkconfig:2345 20 90
+#description:kafka
+#processname:kafka
+
+case \$1 in
+	start)
+	/usr/local/kafka_2.11-0.10.2.1/bin/kafka-server-start.sh -daemon /usr/local/kafka_2.11-0.10.2.1/config/server.properties
+	;;
+	stop)
+	/usr/local/kafka_2.11-0.10.2.1/bin/kafka-server-stop.sh
+	;;
+	status)
+	/usr/local/jdk1.8.0_201/bin/jps
+	;;
+	restart)
+	/usr/local/kafka_2.11-0.10.2.1/bin/kafka-server-stop.sh
+	/usr/local/kafka_2.11-0.10.2.1/bin/kafka-server-start.sh -daemon /usr/local/kafka_2.11-0.10.2.1/config/server.properties
+	;;
+	*)
+	echo "require start|stop|status|restart"
+	;;
+esac
+EOF
+
+cat<<EOF >/etc/init.d/autostart.sh
+#!/bin/bash
+#chkconfig:2345 20 90
+#description:autostart
+#processname:autostart
+service kafka stop
+service zookeeper stop
+service zookeeper start
+service kafka start
+EOF
+chmod +x /etc/init.d/zookeeper /etc/init.d/kafka /etc/init.d/autostart.sh
+chkconfig --add autostart.sh
+chkconfig autostart.sh on
+
+/usr/local/zookeeper-3.4.5/bin/zkServer.sh start
+/usr/local/kafka_2.11-0.10.2.1/bin/kafka-server-start.sh /usr/local/kafka_2.11-0.10.2.1/config/server.properties &
+
